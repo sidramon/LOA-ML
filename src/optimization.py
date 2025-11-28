@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import random
 from typing import Dict
 
-from board import Board
-from cpu import CPUPlayer
+from .board import Board
+from .cpu import CPUPlayer
 
 
 @dataclass
@@ -74,8 +74,8 @@ def fitness(weights):
     }
     score = 0
     for _ in range(2):
+        # Alterne les couleurs entre chaque partie contre le même adversaire
         score += play_match(weights, baseline)
-    for _ in range(2):
         score -= play_match(baseline, weights)
     return score
 

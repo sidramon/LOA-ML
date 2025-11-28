@@ -2,7 +2,7 @@
 
 import random
 
-from moves import Move, MoveState
+from .moves import Move, MoveState
 
 DEFAULT_START = [
     [0, 2, 2, 2, 2, 2, 2, 0],
