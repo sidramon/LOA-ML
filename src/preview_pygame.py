@@ -3,14 +3,18 @@ from board import Board
 from cpu import CPUPlayer
 
 # Constants
-WIDTH, HEIGHT = 800, 800
 GRID_SIZE = 100
+BOARD_PIXELS = GRID_SIZE * 8
+SIDEBAR_WIDTH = 260
+SCREEN_WIDTH = BOARD_PIXELS + SIDEBAR_WIDTH
+SCREEN_HEIGHT = BOARD_PIXELS
 FPS = 30
 MOVE_INTERVAL_MS = 250
 
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+SIDEBAR_BG = (30, 30, 30)
 PLAYER2_COLOR = (0, 0, 255)  # Blue for player 2
 PLAYER4_COLOR = (255, 0, 0)  # Red for player 4
 
@@ -31,11 +35,55 @@ def draw_board(screen, board):
                 pygame.draw.circle(screen, PLAYER4_COLOR, rect.center, GRID_SIZE // 3)
 
 
+def format_move(move):
+    if move is None:
+        return "N/A"
+    return f"{chr(move.fc + ord('A'))}{move.fr + 1} -> {chr(move.tc + ord('A'))}{move.tr + 1}"
+
+
+def draw_sidebar(screen, board, player2, player4, current_player, game_over, font):
+    sidebar_rect = pygame.Rect(BOARD_PIXELS, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
+    pygame.draw.rect(screen, SIDEBAR_BG, sidebar_rect)
+
+    def blit_line(text, y_offset):
+        surf = font.render(text, True, WHITE)
+        screen.blit(surf, (BOARD_PIXELS + 12, y_offset))
+        return y_offset + surf.get_height() + 6
+
+    y = 16
+    if game_over:
+        winner = board.get_winner()
+        status = "Jeu terminé"
+        winner_text = f"Gagnant: Joueur {winner}" if winner else "Match nul"
+        y = blit_line(status, y)
+        y = blit_line(winner_text, y)
+    else:
+        y = blit_line(f"Tour: Joueur {current_player}", y)
+
+    def render_cpu_info(cpu, y_offset):
+        y_cursor = blit_line(f"Heuristiques Joueur {cpu.player}:", y_offset + 10)
+        for key in ["grouping", "connection", "enemy_sep", "mobility"]:
+            val = cpu.weights.get(key, 0)
+            y_cursor = blit_line(f"- {key}: {val:.2f}", y_cursor)
+
+        move_text = format_move(cpu.last_best_move)
+        score_text = (
+            f"{cpu.last_best_score:.2f}" if cpu.last_best_score is not None else "N/A"
+        )
+        y_cursor = blit_line(f"Meilleur coup: {move_text}", y_cursor)
+        y_cursor = blit_line(f"Score: {score_text}", y_cursor)
+        return y_cursor
+
+    y = render_cpu_info(player2, y)
+    render_cpu_info(player4, y)
+
+
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Board Game Preview")
     clock = pygame.time.Clock()
+    font = pygame.font.SysFont("arial", 18)
 
     board = Board()  # Initialize the game board
     player2 = CPUPlayer(
@@ -89,6 +137,7 @@ def main():
 
         screen.fill(BLACK)
         draw_board(screen, board)
+        draw_sidebar(screen, board, player2, player4, current_player, game_over, font)
         pygame.display.flip()
         clock.tick(FPS)
 
