@@ -106,9 +106,21 @@ class Board:
         return 0 <= x < 8 and 0 <= y < 8
 
     def is_game_over(self):
-        return self.countPlayer2 == 0 or self.countPlayer4 == 0
+        return (
+            self.countPlayer2 == 0
+            or self.countPlayer4 == 0
+            or self.isWinningState(2)
+            or self.isWinningState(4)
+        )
 
     def get_winner(self):
+        player2_win = self.isWinningState(2)
+        player4_win = self.isWinningState(4)
+
+        if player2_win and not player4_win:
+            return 2
+        if player4_win and not player2_win:
+            return 4
         if self.countPlayer2 == 0:
             return 4
         if self.countPlayer4 == 0:

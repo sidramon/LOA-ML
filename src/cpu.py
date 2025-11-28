@@ -7,6 +7,8 @@ class CPUPlayer:
     def __init__(self, player, weights):
         self.player = player
         self.weights = weights
+        self.last_best_move = None
+        self.last_best_score = None
 
     def evaluate(self, board: Board):
         f = board.evaluate_features(self.player)
@@ -71,4 +73,6 @@ class CPUPlayer:
                 bestScore = score
                 bestMove = mv
 
+        self.last_best_move = bestMove
+        self.last_best_score = bestScore
         return bestMove
