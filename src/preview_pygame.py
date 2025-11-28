@@ -1,6 +1,7 @@
 import pygame
 from board import Board
 from cpu import CPUPlayer
+from optimization import perturb
 
 # Constants
 GRID_SIZE = 100
@@ -10,6 +11,8 @@ SCREEN_WIDTH = BOARD_PIXELS + SIDEBAR_WIDTH
 SCREEN_HEIGHT = BOARD_PIXELS
 FPS = 30
 MOVE_INTERVAL_MS = 250
+RESTART_DELAY_MS = 800
+PERTURBATION_SIGMA = 0.35
 
 # Colors
 WHITE = (255, 255, 255)
@@ -41,7 +44,18 @@ def format_move(move):
     return f"{chr(move.fc + ord('A'))}{move.fr + 1} -> {chr(move.tc + ord('A'))}{move.tr + 1}"
 
 
-def draw_sidebar(screen, board, player2, player4, current_player, game_over, font):
+def draw_sidebar(
+    screen,
+    board,
+    player2,
+    player4,
+    current_player,
+    game_over,
+    font,
+    match_index,
+    champion_wins,
+    challenger_wins,
+):
     sidebar_rect = pygame.Rect(BOARD_PIXELS, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
     pygame.draw.rect(screen, SIDEBAR_BG, sidebar_rect)
 
@@ -51,6 +65,10 @@ def draw_sidebar(screen, board, player2, player4, current_player, game_over, fon
         return y_offset + surf.get_height() + 6
 
     y = 16
+    y = blit_line(f"Match: {match_index}", y)
+    y = blit_line(f"Champion (J2) victoires: {champion_wins}", y)
+    y = blit_line(f"Challengers (J4) victoires: {challenger_wins}", y)
+
     if game_over:
         winner = board.get_winner()
         status = "Jeu terminé"
@@ -85,30 +103,31 @@ def main():
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", 18)
 
-    board = Board()  # Initialize the game board
-    player2 = CPUPlayer(
-        2,
-        {
-            "grouping": 1.0,
-            "connection": 1.0,
-            "enemy_sep": 1.0,
-            "mobility": 1.0,
-        },
-    )
-    player4 = CPUPlayer(
-        4,
-        {
-            "grouping": 0.8,
-            "connection": 1.2,
-            "enemy_sep": 1.0,
-            "mobility": 1.1,
-        },
-    )
+    best_weights = {
+        "grouping": 1.0,
+        "connection": 1.0,
+        "enemy_sep": 1.0,
+        "mobility": 1.0,
+    }
+
+    def new_match(champion_weights, challenger_weights):
+        board = Board()  # Initialize the game board
+        player2 = CPUPlayer(2, champion_weights)
+        player4 = CPUPlayer(4, challenger_weights)
+        return board, player2, player4
+
+    challenger_weights = perturb(best_weights, PERTURBATION_SIGMA)
+    board, player2, player4 = new_match(best_weights, challenger_weights)
+
+    match_index = 1
+    champion_wins = 0
+    challenger_wins = 0
 
     current_player = 2
     last_move_time = 0
     running = True
     game_over = False
+    restart_at = None
 
     while running:
         for event in pygame.event.get():
@@ -122,7 +141,19 @@ def main():
             break
 
         now = pygame.time.get_ticks()
-        if not game_over and now - last_move_time >= MOVE_INTERVAL_MS:
+        if game_over:
+            if restart_at is None:
+                restart_at = now + RESTART_DELAY_MS
+            elif now >= restart_at:
+                challenger_weights = perturb(best_weights, PERTURBATION_SIGMA)
+                board, player2, player4 = new_match(best_weights, challenger_weights)
+                current_player = 2
+                match_index += 1
+                game_over = False
+                restart_at = None
+                last_move_time = now
+            # Skip move generation while waiting to restart
+        elif now - last_move_time >= MOVE_INTERVAL_MS:
             current_cpu = player2 if current_player == 2 else player4
             move = current_cpu.play(board, depth=2)
 
@@ -133,11 +164,32 @@ def main():
                 current_player = 4 if current_player == 2 else 2
                 if board.is_game_over():
                     game_over = True
+
+            if game_over:
+                winner = board.get_winner()
+                if winner == 2:
+                    champion_wins += 1
+                elif winner == 4:
+                    challenger_wins += 1
+                    best_weights = challenger_weights
+                restart_at = now + RESTART_DELAY_MS
+
             last_move_time = now
 
         screen.fill(BLACK)
         draw_board(screen, board)
-        draw_sidebar(screen, board, player2, player4, current_player, game_over, font)
+        draw_sidebar(
+            screen,
+            board,
+            player2,
+            player4,
+            current_player,
+            game_over,
+            font,
+            match_index,
+            champion_wins,
+            challenger_wins,
+        )
         pygame.display.flip()
         clock.tick(FPS)
 
