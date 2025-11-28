@@ -1,3 +1,6 @@
+import itertools
+
+import matplotlib.pyplot as plt
 import pygame
 from board import Board
 from cpu import CPUPlayer
@@ -18,8 +21,8 @@ PERTURBATION_SIGMA = 0.35
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 SIDEBAR_BG = (30, 30, 30)
-PLAYER2_COLOR = (0, 0, 255)  # Blue for player 2
-PLAYER4_COLOR = (255, 0, 0)  # Red for player 4
+PLAYER2_COLOR = (0, 0, 255)  # Bleu (joueur 2)
+PLAYER4_COLOR = (255, 0, 0)  # Rouge (joueur 4)
 
 
 def draw_board(screen, board):
@@ -53,8 +56,10 @@ def draw_sidebar(
     game_over,
     font,
     match_index,
-    champion_wins,
-    challenger_wins,
+    champion_score,
+    challenger_score,
+    champion_name,
+    challenger_name,
 ):
     sidebar_rect = pygame.Rect(BOARD_PIXELS, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
     pygame.draw.rect(screen, SIDEBAR_BG, sidebar_rect)
@@ -66,20 +71,27 @@ def draw_sidebar(
 
     y = 16
     y = blit_line(f"Match: {match_index}", y)
-    y = blit_line(f"Champion (J2) victoires: {champion_wins}", y)
-    y = blit_line(f"Challengers (J4) victoires: {challenger_wins}", y)
+    y = blit_line(f"Champion ({champion_name}) bleu: {champion_score:.1f}", y)
+    y = blit_line(f"Challenger ({challenger_name}) rouge: {challenger_score:.1f}", y)
 
     if game_over:
         winner = board.get_winner()
         status = "Jeu terminé"
-        winner_text = f"Gagnant: Joueur {winner}" if winner else "Match nul"
+        if winner == 2:
+            winner_text = "Gagnant: Joueur Bleu"
+        elif winner == 4:
+            winner_text = "Gagnant: Joueur Rouge"
+        else:
+            winner_text = "Match nul"
         y = blit_line(status, y)
         y = blit_line(winner_text, y)
     else:
-        y = blit_line(f"Tour: Joueur {current_player}", y)
+        player_label = "Joueur Bleu" if current_player == 2 else "Joueur Rouge"
+        y = blit_line(f"Tour: {player_label}", y)
 
     def render_cpu_info(cpu, y_offset):
-        y_cursor = blit_line(f"Heuristiques Joueur {cpu.player}:", y_offset + 10)
+        label = "Bleu" if cpu.player == 2 else "Rouge"
+        y_cursor = blit_line(f"Heuristiques Joueur {label}:", y_offset + 10)
         for key in ["grouping", "connection", "enemy_sep", "mobility"]:
             val = cpu.weights.get(key, 0)
             y_cursor = blit_line(f"- {key}: {val:.2f}", y_cursor)
@@ -103,12 +115,26 @@ def main():
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", 18)
 
+    plt.ion()
+    fig, ax = plt.subplots()
+    ax.set_xlabel("Duel")
+    ax.set_ylabel("Score du champion")
+    ax.set_title("Performance du meilleur CPU")
+    fig.canvas.manager.set_window_title("Evolution du meilleur CPU")
+
     best_weights = {
         "grouping": 1.0,
         "connection": 1.0,
         "enemy_sep": 1.0,
         "mobility": 1.0,
     }
+
+    def next_cpu_name(counter):
+        return f"CPU{counter:03d}"
+
+    cpu_counter = itertools.count(1)
+    champion_name = next_cpu_name(next(cpu_counter))
+    challenger_name = next_cpu_name(next(cpu_counter))
 
     def new_match(champion_weights, challenger_weights):
         board = Board()  # Initialize the game board
@@ -120,8 +146,10 @@ def main():
     board, player2, player4 = new_match(best_weights, challenger_weights)
 
     match_index = 1
-    champion_wins = 0
-    challenger_wins = 0
+    duel_scores = {2: 0.0, 4: 0.0}
+    duel_games_played = 0
+
+    champion_history = []
 
     current_player = 2
     last_move_time = 0
@@ -145,7 +173,6 @@ def main():
             if restart_at is None:
                 restart_at = now + RESTART_DELAY_MS
             elif now >= restart_at:
-                challenger_weights = perturb(best_weights, PERTURBATION_SIGMA)
                 board, player2, player4 = new_match(best_weights, challenger_weights)
                 current_player = 2
                 match_index += 1
@@ -167,11 +194,46 @@ def main():
 
             if game_over:
                 winner = board.get_winner()
+
                 if winner == 2:
-                    champion_wins += 1
+                    duel_scores[2] += 1.5
+                    duel_scores[4] -= 1
                 elif winner == 4:
-                    challenger_wins += 1
-                    best_weights = challenger_weights
+                    duel_scores[4] += 1
+                    duel_scores[2] -= 1
+
+                duel_games_played += 1
+
+                if duel_games_played >= 2:
+                    champion_score = duel_scores[2]
+                    challenger_score = duel_scores[4]
+                    champion_keeps_title = champion_score >= challenger_score
+
+                    if champion_keeps_title:
+                        champion_history.append((match_index, champion_score, champion_name))
+                    else:
+                        best_weights = challenger_weights
+                        champion_name = challenger_name
+                        champion_history.append((match_index, challenger_score, champion_name))
+                        challenger_name = next_cpu_name(next(cpu_counter))
+
+                    challenger_weights = perturb(best_weights, PERTURBATION_SIGMA)
+                    duel_scores = {2: 0.0, 4: 0.0}
+                    duel_games_played = 0
+
+                    ax.clear()
+                    ax.set_xlabel("Duel")
+                    ax.set_ylabel("Score du champion")
+                    ax.set_title(f"Performance du meilleur CPU ({champion_name})")
+                    if champion_history:
+                        xs = [d[0] for d in champion_history]
+                        ys = [d[1] for d in champion_history]
+                        ax.plot(xs, ys, marker="o")
+                        for x, y, name in champion_history:
+                            ax.annotate(name, (x, y))
+                    fig.canvas.draw()
+                    fig.canvas.flush_events()
+
                 restart_at = now + RESTART_DELAY_MS
 
             last_move_time = now
@@ -187,8 +249,10 @@ def main():
             game_over,
             font,
             match_index,
-            champion_wins,
-            challenger_wins,
+            duel_scores[2],
+            duel_scores[4],
+            champion_name,
+            challenger_name,
         )
         pygame.display.flip()
         clock.tick(FPS)
