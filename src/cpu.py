@@ -1,6 +1,6 @@
 """CPU player implementation using minimax with alpha-beta pruning."""
 
-from .board import Board
+from board import Board
 
 
 class CPUPlayer:

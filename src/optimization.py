@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import random
 from typing import Dict
 
-from .board import Board
-from .cpu import CPUPlayer
+from board import Board
+from cpu import CPUPlayer
 
 
 @dataclass
