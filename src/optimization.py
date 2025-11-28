@@ -1,9 +1,24 @@
 """Weight optimization loop for the AI player."""
 
+from dataclasses import dataclass
 import random
+from typing import Dict
 
 from board import Board
 from cpu import CPUPlayer
+
+
+@dataclass
+class OptimizationStats:
+    """Represents the current status of the optimization loop."""
+
+    best_weights: Dict[str, float]
+    best_score: float
+    iteration: int
+    sigma: float
+    last_candidate: Dict[str, float]
+    last_score: float
+    improved: bool
 
 
 def random_weights():
@@ -65,31 +80,62 @@ def fitness(weights):
     return score
 
 
+class OptimizationRunner:
+    """Utility to step through the stochastic search in a controlled way."""
+
+    def __init__(self, sigma: float = 0.4):
+        self.best = random_weights()
+        self.best_score = fitness(self.best)
+        self.sigma = sigma
+        self.iteration = 0
+        self.last_candidate = self.best
+        self.last_score = self.best_score
+
+    def step(self) -> OptimizationStats:
+        """Performs a single optimization step and returns the updated stats."""
+
+        candidate = perturb(self.best, self.sigma)
+        score = fitness(candidate)
+
+        self.iteration += 1
+        self.last_candidate = candidate
+        self.last_score = score
+
+        improved = False
+        if score > self.best_score:
+            self.best, self.best_score = candidate, score
+            improved = True
+
+        self.sigma = max(0.05, self.sigma * 0.999)
+
+        return OptimizationStats(
+            best_weights=self.best,
+            best_score=self.best_score,
+            iteration=self.iteration,
+            sigma=self.sigma,
+            last_candidate=self.last_candidate,
+            last_score=self.last_score,
+            improved=improved,
+        )
+
+
 def optimize():
-    best = random_weights()
-    best_score = fitness(best)
+    runner = OptimizationRunner()
 
     print("Début de la recherche ML")
-    print(best, "=>", best_score)
-
-    sigma = 0.4
+    print(runner.best, "=>", runner.best_score)
 
     try:
         while True:
-            candidate = perturb(best, sigma)
-            score = fitness(candidate)
-
-            if score > best_score:
-                best, best_score = candidate, score
-                print("\nNOUVEAU MEILLEUR :", best, "score =", best_score)
-
-            sigma = max(0.05, sigma * 0.999)
+            stats = runner.step()
+            if stats.improved:
+                print("\nNOUVEAU MEILLEUR :", stats.best_weights, "score =", stats.best_score)
 
     except KeyboardInterrupt:
         print("\n=== ARRET ===")
         print("Meilleurs poids trouvés :")
-        print(best)
-        print("Score :", best_score)
+        print(runner.best)
+        print("Score :", runner.best_score)
 
 
 if __name__ == "__main__":
