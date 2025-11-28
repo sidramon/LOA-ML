@@ -1,5 +1,6 @@
 import unittest
-from src.ml import Board, Move
+
+from src.game import Board, Move
 
 class TestBoard(unittest.TestCase):
 

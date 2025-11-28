@@ -7,11 +7,11 @@ This project implements a board game AI using Python and Pygame. The AI utilizes
 ```
 board-ai-pygame
 ├── src
-│   ├── ml.py               # Main game logic and AI implementation
+│   ├── game.py             # Main game logic and AI implementation
 │   ├── preview_pygame.py   # Real-time graphical preview using Pygame
 │   └── __init__.py         # Package initialization
 ├── tests
-│   └── test_ml.py          # Unit tests for game logic
+│   └── test_game.py        # Unit tests for game logic
 ├── requirements.txt         # Project dependencies
 ├── .gitignore               # Files to ignore in version control
 └── README.md                # Project documentation
@@ -39,16 +39,16 @@ This will open a Pygame window displaying the game board and pieces. You can int
 
 ## Features
 
-- **Game Logic**: The core game mechanics are implemented in `ml.py`, including move generation and evaluation.
+- **Game Logic**: The core game mechanics are implemented in `game.py`, including move generation and evaluation.
 - **AI Player**: The AI uses a minimax algorithm with alpha-beta pruning to make optimal moves.
 - **Real-time Preview**: The game state is visually represented in real-time using Pygame, allowing for an interactive experience.
 
 ## Testing
 
-Unit tests for the game logic can be found in the `tests/test_ml.py` file. To run the tests, use the following command:
+Unit tests for the game logic can be found in the `tests/test_game.py` file. To run the tests, use the following command:
 
 ```bash
-pytest tests/test_ml.py
+pytest tests/test_game.py
 ```
 
 ## Contributing
