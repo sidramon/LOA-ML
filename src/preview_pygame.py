@@ -23,6 +23,7 @@ BLACK = (0, 0, 0)
 SIDEBAR_BG = (30, 30, 30)
 PLAYER2_COLOR = (0, 0, 255)  # Bleu (joueur 2)
 PLAYER4_COLOR = (255, 0, 0)  # Rouge (joueur 4)
+GOLD = (212, 175, 55)
 
 
 def draw_board(screen, board):
@@ -64,8 +65,8 @@ def draw_sidebar(
     sidebar_rect = pygame.Rect(BOARD_PIXELS, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
     pygame.draw.rect(screen, SIDEBAR_BG, sidebar_rect)
 
-    def blit_line(text, y_offset):
-        surf = font.render(text, True, WHITE)
+    def blit_line(text, y_offset, color=WHITE):
+        surf = font.render(text, True, color)
         screen.blit(surf, (BOARD_PIXELS + 12, y_offset))
         return y_offset + surf.get_height() + 6
 
@@ -89,22 +90,24 @@ def draw_sidebar(
         player_label = "Joueur Bleu" if current_player == 2 else "Joueur Rouge"
         y = blit_line(f"Tour: {player_label}", y)
 
-    def render_cpu_info(cpu, y_offset):
+    def render_cpu_info(cpu, y_offset, highlight=False):
         label = "Bleu" if cpu.player == 2 else "Rouge"
-        y_cursor = blit_line(f"Heuristiques Joueur {label}:", y_offset + 10)
+        color = GOLD if highlight else WHITE
+
+        y_cursor = blit_line(f"Heuristiques Joueur {label}:", y_offset + 10, color)
         for key in ["grouping", "connection", "enemy_sep", "mobility"]:
             val = cpu.weights.get(key, 0)
-            y_cursor = blit_line(f"- {key}: {val:.2f}", y_cursor)
+            y_cursor = blit_line(f"- {key}: {val:.2f}", y_cursor, color)
 
         move_text = format_move(cpu.last_best_move)
         score_text = (
             f"{cpu.last_best_score:.2f}" if cpu.last_best_score is not None else "N/A"
         )
-        y_cursor = blit_line(f"Meilleur coup: {move_text}", y_cursor)
-        y_cursor = blit_line(f"Score: {score_text}", y_cursor)
+        y_cursor = blit_line(f"Meilleur coup: {move_text}", y_cursor, color)
+        y_cursor = blit_line(f"Score: {score_text}", y_cursor, color)
         return y_cursor
 
-    y = render_cpu_info(player2, y)
+    y = render_cpu_info(player2, y, highlight=True)
     render_cpu_info(player4, y)
 
 

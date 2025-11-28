@@ -12,12 +12,24 @@ class CPUPlayer:
 
     def evaluate(self, board: Board):
         f = board.evaluate_features(self.player)
-        return (
-            f["grouping"] * self.weights["grouping"]
-            + f["connection"] * self.weights["connection"]
-            + f["enemy_sep"] * self.weights["enemy_sep"]
-            + f["mobility"] * self.weights["mobility"]
+        mobility_weight = 0.4 * (0.1 + f["connection"] / 100.0)
+
+        base_score = (
+            0.5 * f["grouping"]
+            + 0.5 * f["connection"]
+            + 0.2 * f["enemy_sep"]
+            + mobility_weight * f["mobility"]
         )
+
+        tuned_score = base_score * self.weights.get("global", 1.0)
+        tuned_score += (
+            f["grouping"] * self.weights.get("grouping", 0)
+            + f["connection"] * self.weights.get("connection", 0)
+            + f["enemy_sep"] * self.weights.get("enemy_sep", 0)
+            + f["mobility"] * self.weights.get("mobility", 0)
+        )
+
+        return tuned_score
 
     def opponent(self):
         return 4 if self.player == 2 else 2
