@@ -54,6 +54,7 @@ def draw_sidebar(
     player2,
     player4,
     current_player,
+    champion_color,
     game_over,
     font,
     match_index,
@@ -72,8 +73,15 @@ def draw_sidebar(
 
     y = 16
     y = blit_line(f"Match: {match_index}", y)
-    y = blit_line(f"Champion ({champion_name}) bleu: {champion_score:.1f}", y)
-    y = blit_line(f"Challenger ({challenger_name}) rouge: {challenger_score:.1f}", y)
+    champion_label = "bleu" if champion_color == 2 else "rouge"
+    challenger_label = "rouge" if champion_color == 2 else "bleu"
+    y = blit_line(
+        f"Champion ({champion_name}) {champion_label}: {champion_score:.1f}", y
+    )
+    y = blit_line(
+        f"Challenger ({challenger_name}) {challenger_label}: {challenger_score:.1f}",
+        y,
+    )
 
     if game_over:
         winner = board.get_winner()
@@ -107,8 +115,9 @@ def draw_sidebar(
         y_cursor = blit_line(f"Score: {score_text}", y_cursor, color)
         return y_cursor
 
-    y = render_cpu_info(player2, y, highlight=True)
-    render_cpu_info(player4, y)
+    champion_highlight = player2.player == champion_color
+    y = render_cpu_info(player2, y, highlight=champion_highlight)
+    render_cpu_info(player4, y, highlight=not champion_highlight)
 
 
 def main():
@@ -139,17 +148,26 @@ def main():
     champion_name = next_cpu_name(next(cpu_counter))
     challenger_name = next_cpu_name(next(cpu_counter))
 
-    def new_match(champion_weights, challenger_weights):
+    def new_match(champion_weights, challenger_weights, champion_color):
         board = Board()  # Initialize the game board
-        player2 = CPUPlayer(2, champion_weights)
-        player4 = CPUPlayer(4, challenger_weights)
+        if champion_color == 2:
+            player2 = CPUPlayer(2, champion_weights)
+            player4 = CPUPlayer(4, challenger_weights)
+        else:
+            player2 = CPUPlayer(2, challenger_weights)
+            player4 = CPUPlayer(4, champion_weights)
         return board, player2, player4
 
     challenger_weights = perturb(best_weights, PERTURBATION_SIGMA)
-    board, player2, player4 = new_match(best_weights, challenger_weights)
+    champion_color = 2
+    challenger_color = 4
+    board, player2, player4 = new_match(
+        best_weights, challenger_weights, champion_color
+    )
 
     match_index = 1
-    duel_scores = {2: 0.0, 4: 0.0}
+    champion_duel_score = 0.0
+    challenger_duel_score = 0.0
     duel_games_played = 0
 
     champion_history = []
@@ -176,7 +194,11 @@ def main():
             if restart_at is None:
                 restart_at = now + RESTART_DELAY_MS
             elif now >= restart_at:
-                board, player2, player4 = new_match(best_weights, challenger_weights)
+                champion_color = 2 if duel_games_played % 2 == 0 else 4
+                challenger_color = 4 if champion_color == 2 else 2
+                board, player2, player4 = new_match(
+                    best_weights, challenger_weights, champion_color
+                )
                 current_player = 2
                 match_index += 1
                 game_over = False
@@ -198,18 +220,18 @@ def main():
             if game_over:
                 winner = board.get_winner()
 
-                if winner == 2:
-                    duel_scores[2] += 1.5
-                    duel_scores[4] -= 1
-                elif winner == 4:
-                    duel_scores[4] += 1
-                    duel_scores[2] -= 1
+                if winner == champion_color:
+                    champion_duel_score += 1.5
+                    challenger_duel_score -= 1
+                elif winner == challenger_color:
+                    challenger_duel_score += 1
+                    champion_duel_score -= 1
 
                 duel_games_played += 1
 
                 if duel_games_played >= 2:
-                    champion_score = duel_scores[2]
-                    challenger_score = duel_scores[4]
+                    champion_score = champion_duel_score
+                    challenger_score = challenger_duel_score
                     champion_keeps_title = champion_score >= challenger_score
 
                     if champion_keeps_title:
@@ -221,8 +243,11 @@ def main():
                         challenger_name = next_cpu_name(next(cpu_counter))
 
                     challenger_weights = perturb(best_weights, PERTURBATION_SIGMA)
-                    duel_scores = {2: 0.0, 4: 0.0}
+                    champion_duel_score = 0.0
+                    challenger_duel_score = 0.0
                     duel_games_played = 0
+                    champion_color = 2
+                    challenger_color = 4
 
                     ax.clear()
                     ax.set_xlabel("Duel")
@@ -249,11 +274,12 @@ def main():
             player2,
             player4,
             current_player,
+            champion_color,
             game_over,
             font,
             match_index,
-            duel_scores[2],
-            duel_scores[4],
+            champion_duel_score,
+            challenger_duel_score,
             champion_name,
             challenger_name,
         )
