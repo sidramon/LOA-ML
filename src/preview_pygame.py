@@ -2,20 +2,9 @@ import itertools
 
 import matplotlib.pyplot as plt
 import pygame
-
-if __package__ in (None, ""):
-    import os
-    import sys
-
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-    from src.board import Board
-    from src.cpu import CPUPlayer
-    from src.optimization import perturb
-else:
-    from .board import Board
-    from .cpu import CPUPlayer
-    from .optimization import perturb
+from board import Board
+from cpu import CPUPlayer
+from optimization import perturb
 
 # Constants
 GRID_SIZE = 100
