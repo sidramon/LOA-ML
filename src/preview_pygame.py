@@ -1,5 +1,5 @@
 import pygame
-from ml import Board, Move
+from board import Board
 
 # Constants
 WIDTH, HEIGHT = 800, 800
